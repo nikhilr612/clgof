@@ -15,7 +15,7 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/VideoMode.hpp>
 
-const std::string KERNEL_SRC = R"(
+static const char* const kernel_src = R"(
     __kernel void game_of_life(__global const uchar* input,
                               __global uchar* output,
                               const int width,
@@ -79,7 +79,9 @@ const std::string KERNEL_SRC = R"(
  * @return std::pair containing the selected platform and device
  * @throws std::runtime_error if no OpenCL devices are found
  */
-static std::pair<cl::Platform, cl::Device> get_platform_device()
+namespace
+{
+auto get_platform_device() -> std::pair<cl::Platform, cl::Device>
 {
   std::vector<cl::Platform> platforms;
   cl::Platform::get(&platforms);
@@ -150,6 +152,7 @@ static std::pair<cl::Platform, cl::Device> get_platform_device()
 
   throw std::runtime_error("No OpenCL devices found");
 }
+}  // namespace
 
 library::library(size_t width, size_t height, size_t pixel_size)
     : name("CLGOF")
@@ -168,7 +171,7 @@ library::library(size_t width, size_t height, size_t pixel_size)
   context = cl::Context(device);
   queue = cl::CommandQueue(context, device);
 
-  program = cl::Program(context, KERNEL_SRC);
+  program = cl::Program(context, kernel_src);
   try {
     program.build({device});
   } catch (...) {
@@ -239,7 +242,7 @@ auto library::write_buffer(sf::Vector2u pos,
     for (size_t rel_y = 0; rel_y < height; rel_y++) {
       size_t d_i = rel_x + (rel_y * width);
       size_t b_i = (pos.x + rel_x) + ((pos.y + rel_y) * column_count);
-      pixbuffer[b_i] = data[d_i];
+      pixbuffer[b_i] = static_cast<uint8_t>(data[d_i]);
     }
   }
 }
